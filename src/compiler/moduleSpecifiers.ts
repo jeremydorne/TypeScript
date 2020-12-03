@@ -213,7 +213,7 @@ namespace ts.moduleSpecifiers {
     }
 
     export function forEachFileNameOfModule<T>(
-        importingFileName: string,
+        _importingFileName: string,
         importedFileName: string,
         host: ModuleSpecifierResolutionHost,
         preferSymlinks: boolean,
@@ -233,27 +233,24 @@ namespace ts.moduleSpecifiers {
             ? host.getSymlinkCache()
             : discoverProbableSymlinks(host.getSourceFiles(), getCanonicalFileName, cwd);
 
-        const symlinkedDirectories = links.getSymlinkedDirectories();
         const useCaseSensitiveFileNames = !host.useCaseSensitiveFileNames || host.useCaseSensitiveFileNames();
-        const result = symlinkedDirectories && forEachEntry(symlinkedDirectories, (resolved, path) => {
-            if (resolved === false) return undefined;
-            if (startsWithDirectory(importingFileName, resolved.realPath, getCanonicalFileName)) {
-                return undefined; // Don't want to a package to globally import from itself
-            }
-
+        const compareStrings = useCaseSensitiveFileNames ? compareStringsCaseSensitive : compareStringsCaseInsensitive;
+        const realPathToSymlinks = links.getRealPathToSymlinks();
+        const result = realPathToSymlinks && forEachEntry(realPathToSymlinks, (paths, resolved) => {
             return forEach(targets, target => {
-                if (!containsPath(resolved.real, target, !useCaseSensitiveFileNames)) {
+                if (compareStrings(target.slice(0, resolved.length), resolved) !== Comparison.EqualTo || !containsPath(resolved, target, !useCaseSensitiveFileNames)) {
                     return;
                 }
 
-                const relative = getRelativePathFromDirectory(resolved.real, target, getCanonicalFileName);
-                const option = resolvePath(path, relative);
-                if (!host.fileExists || host.fileExists(option)) {
+                const relative = getRelativePathFromDirectory(resolved, target, getCanonicalFileName);
+                for (const path of paths) {
+                    const option = resolvePath(path, relative);
                     const result = cb(option, target === referenceRedirect);
                     if (result) return result;
                 }
             });
         });
+
         return result ||
             (preferSymlinks ? forEach(targets, p => cb(p, p === referenceRedirect)) : undefined);
     }
