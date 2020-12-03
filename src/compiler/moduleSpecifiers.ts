@@ -169,7 +169,7 @@ namespace ts.moduleSpecifiers {
     }
 
     export function forEachFileNameOfModule<T>(
-        importingFileName: string,
+        _importingFileName: string,
         importedFileName: string,
         host: ModuleSpecifierResolutionHost,
         preferSymlinks: boolean,
@@ -193,19 +193,19 @@ namespace ts.moduleSpecifiers {
         const compareStrings = (!host.useCaseSensitiveFileNames || host.useCaseSensitiveFileNames()) ? compareStringsCaseSensitive : compareStringsCaseInsensitive;
         const result = symlinkedDirectories && forEachEntry(symlinkedDirectories, (resolved, path) => {
             if (resolved === false) return undefined;
-            if (startsWithDirectory(importingFileName, resolved.realPath, getCanonicalFileName)) {
-                return undefined; // Don't want to a package to globally import from itself
-            }
+            // if (startsWithDirectory(importingFileName, resolved.realPath, getCanonicalFileName)) {
+            //     return undefined; // Don't want to a package to globally import from itself
+            // }
 
             const target = find(targets, t => compareStrings(t.slice(0, resolved.real.length), resolved.real) === Comparison.EqualTo);
             if (target === undefined) return undefined;
 
             const relative = getRelativePathFromDirectory(resolved.real, target, getCanonicalFileName);
             const option = resolvePath(path, relative);
-            if (!host.fileExists || host.fileExists(option)) {
-                const result = cb(option);
-                if (result) return result;
-            }
+            // if (!host.fileExists || host.fileExists(option)) {
+            const result = cb(option);
+            if (result) return result;
+            // }
         });
         return result ||
             (preferSymlinks ? forEach(targets, cb) : undefined);
