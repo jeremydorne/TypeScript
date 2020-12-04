@@ -5939,6 +5939,7 @@ namespace ts {
     export interface SymlinkCache {
         getSymlinkedDirectories(): ReadonlyESMap<Path, SymlinkedDirectory | false> | undefined;
         getSymlinkedFiles(): ReadonlyESMap<Path, string> | undefined;
+        getRealPathToSymlinks(): ReadonlyESMap<Path, Path[]> | undefined;
         setSymlinkedDirectory(path: Path, directory: SymlinkedDirectory | false): void;
         setSymlinkedFile(path: Path, real: string): void;
     }
@@ -5946,11 +5947,23 @@ namespace ts {
     export function createSymlinkCache(): SymlinkCache {
         let symlinkedDirectories: ESMap<Path, SymlinkedDirectory | false> | undefined;
         let symlinkedFiles: ESMap<Path, string> | undefined;
+        let realPathToSymlinks: ESMap<Path, Path[]>;
         return {
             getSymlinkedFiles: () => symlinkedFiles,
             getSymlinkedDirectories: () => symlinkedDirectories,
+            getRealPathToSymlinks: () => realPathToSymlinks,
             setSymlinkedFile: (path, real) => (symlinkedFiles || (symlinkedFiles = new Map())).set(path, real),
-            setSymlinkedDirectory: (path, directory) => (symlinkedDirectories || (symlinkedDirectories = new Map())).set(path, directory),
+            setSymlinkedDirectory: (path, directory) => {
+                // Don't add false directories or directories that have already been added
+                if (directory !== false && symlinkedDirectories?.has(path) !== true) {
+                    if (realPathToSymlinks === undefined) {
+                        realPathToSymlinks = new Map();
+                    }
+                    realPathToSymlinks.get(directory.realPath) === undefined ? realPathToSymlinks.set(directory.realPath, [path]) : realPathToSymlinks.get(directory.realPath)?.push(path);
+                }
+
+                (symlinkedDirectories || (symlinkedDirectories = new Map())).set(path, directory);
+            },
         };
     }
 
